@@ -20,23 +20,26 @@ func BOLTHandler(fallback http.Handler) (http.HandlerFunc, error) {
 
 func propagate(db *bolt.DB) {
 	err := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("path_urls"))
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-
-		pathUrls := map[string]string{
-			"/bolt":   "https://github.com/boltdb/bolt",
-			"/boltdb": "https://github.com/boltdb",
-		}
-
-		for path, url := range pathUrls {
-			err := bucket.Put([]byte(path), []byte(url))
+		bucket := tx.Bucket([]byte("path_urls"))
+		if bucket == nil {
+			var err error
+			bucket, err = tx.CreateBucket([]byte("path_urls"))
 			if err != nil {
-				return fmt.Errorf("failed to insert path %s: %v", path, err)
+				return fmt.Errorf("create bucket: %s", err)
+			}
+
+			pathUrls := map[string]string{
+				"/bolt":   "https://github.com/boltdb/bolt",
+				"/boltdb": "https://github.com/boltdb",
+			}
+
+			for path, url := range pathUrls {
+				err := bucket.Put([]byte(path), []byte(url))
+				if err != nil {
+					return fmt.Errorf("failed to insert path %s: %v", path, err)
+				}
 			}
 		}
-
 		return nil
 	})
 
